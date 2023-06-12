@@ -4,8 +4,9 @@ with lib;
 
 let
   cfg = config.programs.alacritty;
-  yamlFormat = pkgs.formats.yaml { };
-in {
+  tomlFormat = pkgs.formats.toml { };
+in
+{
   options = {
     programs.alacritty = {
       enable = mkEnableOption "Alacritty";
@@ -18,7 +19,7 @@ in {
       };
 
       settings = mkOption {
-        type = yamlFormat.type;
+        type = tomlFormat.type;
         default = { };
         example = literalExpression ''
           {
@@ -49,14 +50,15 @@ in {
     (mkIf cfg.enable {
       home.packages = [ cfg.package ];
 
-      xdg.configFile."alacritty/alacritty.yml" = mkIf (cfg.settings != { }) {
+      xdg.configFile."alacritty/alacritty.toml" = mkIf (cfg.settings != { }) {
         # TODO: Replace by the generate function but need to figure out how to
         # handle the escaping first.
         #
         # source = yamlFormat.generate "alacritty.yml" cfg.settings;
 
-        text =
-          replaceStrings [ "\\\\" ] [ "\\" ] (builtins.toJSON cfg.settings);
+        source = pkgs.runCommand "alacritty-unescaped.toml" { } ''
+          sed -E 's/\\\\/\\/g' ${tomlFormat.generate "alacritty.toml" cfg.settings} > "$out"
+        '';
       };
     })
   ];
